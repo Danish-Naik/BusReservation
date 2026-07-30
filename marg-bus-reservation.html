@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MARG — Bus Reservation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0F1F3D;
+    --ink-soft:#1B2A4A;
+    --paper:#F2F4F7;
+    --paper-2:#FFFFFF;
+    --amber:#F4A300;
+    --teal:#1B998B;
+    --crimson:#D7263D;
+    --text:#1A1D23;
+    --text-soft:#5B6472;
+    --line:#D8DEE7;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3,.display{font-family:'Big Shoulders Display',sans-serif;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ink);}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
+  input,select{font-family:'Inter',sans-serif;}
+  a{color:inherit;}
+
+  /* ===== Top board ===== */
+  .topbar{background:var(--ink);color:#fff;padding:18px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;box-shadow:0 2px 0 rgba(0,0,0,.08);}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand .mark{width:34px;height:34px;border-radius:8px;background:var(--amber);display:flex;align-items:center;justify-content:center;color:var(--ink);font-family:'Big Shoulders Display';font-weight:800;font-size:20px;}
+  .brand .name{font-family:'Big Shoulders Display';font-weight:800;font-size:22px;letter-spacing:1px;}
+  .brand .tag{font-size:11px;color:#A9B4C7;letter-spacing:2px;text-transform:uppercase;margin-top:-2px;}
+  .session{display:flex;align-items:center;gap:14px;font-size:13px;color:#C9D2E0;}
+  .session button{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.3);padding:7px 14px;border-radius:8px;font-size:13px;}
+  .session button:hover{border-color:#fff;}
+
+  .wrap{max-width:1040px;margin:0 auto;padding:40px 28px 80px;}
+  .view{display:none;}
+  .view.active{display:block;animation:fadeUp .35s ease both;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+  /* ===== Hero / departure board ===== */
+  .hero{background:var(--ink);border-radius:20px;padding:36px 32px;color:#fff;margin-bottom:34px;position:relative;overflow:hidden;}
+  .hero:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(115deg, rgba(255,255,255,.03) 0 2px, transparent 2px 26px);}
+  .hero h1{color:#fff;font-size:38px;margin:0 0 6px;position:relative;}
+  .hero p{color:#B9C3D6;margin:0 0 24px;font-size:15px;position:relative;max-width:520px;}
+  .search-row{display:flex;gap:10px;flex-wrap:wrap;position:relative;}
+  .search-row input, .search-row select{padding:12px 14px;border-radius:10px;border:1px solid transparent;background:#182B52;color:#fff;font-size:14px;min-width:150px;}
+  .search-row input::placeholder{color:#8794AC;}
+  .search-row button{background:var(--amber);color:var(--ink);font-weight:700;padding:12px 22px;border-radius:10px;font-size:14px;}
+  .search-row button:hover{filter:brightness(1.05);}
+  .role-pick{display:flex;gap:12px;margin-top:26px;position:relative;}
+  .role-pick button{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.22);padding:10px 18px;border-radius:10px;font-size:13px;}
+  .role-pick button:hover{background:rgba(255,255,255,.16);}
+
+  /* ===== Board rows (bus list) ===== */
+  .board{border:1px solid var(--line);border-radius:16px;background:var(--paper-2);overflow:hidden;}
+  .board-head{display:grid;grid-template-columns:1.4fr 1fr 1fr .7fr .7fr 1fr;padding:14px 20px;font-size:11px;letter-spacing:1.5px;color:var(--text-soft);text-transform:uppercase;border-bottom:1px solid var(--line);}
+  .board-row{display:grid;grid-template-columns:1.4fr 1fr 1fr .7fr .7fr 1fr;padding:16px 20px;align-items:center;border-bottom:1px solid var(--line);animation:flap .5s ease both;}
+  .board-row:last-child{border-bottom:none;}
+  .board-row:nth-child(1){animation-delay:.02s}.board-row:nth-child(2){animation-delay:.08s}.board-row:nth-child(3){animation-delay:.14s}.board-row:nth-child(4){animation-delay:.2s}.board-row:nth-child(5){animation-delay:.26s}
+  @keyframes flap{from{opacity:0;transform:rotateX(35deg) translateY(-6px);}to{opacity:1;transform:none;}}
+  .board-row .busname{font-weight:700;color:var(--ink);}
+  .board-row .busno{font-size:12px;color:var(--text-soft);}
+  .route{font-size:14px;}
+  .route .arrow{color:var(--amber);margin:0 6px;}
+  .seats{font-family:'IBM Plex Mono';font-size:13px;}
+  .seats.low{color:var(--crimson);}
+  .seats.ok{color:var(--teal);}
+  .empty-note{padding:30px 20px;color:var(--text-soft);font-size:14px;}
+  .book-btn{background:var(--ink);color:#fff;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;}
+  .book-btn:disabled{background:var(--line);color:var(--text-soft);cursor:not-allowed;}
+  .book-btn:hover:not(:disabled){background:var(--ink-soft);}
+
+  /* ===== Cards / auth ===== */
+  .card{background:var(--paper-2);border:1px solid var(--line);border-radius:16px;padding:30px;max-width:420px;margin:0 auto;}
+  .card h2{font-size:26px;margin:0 0 4px;}
+  .card .sub{color:var(--text-soft);font-size:13px;margin-bottom:22px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;color:var(--text-soft);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;}
+  .field input{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:9px;font-size:14px;}
+  .field input:focus{outline:2px solid var(--ink);outline-offset:1px;}
+  .primary-btn{width:100%;background:var(--ink);color:#fff;padding:13px;border-radius:9px;font-weight:700;font-size:14px;margin-top:6px;}
+  .primary-btn:hover{background:var(--ink-soft);}
+  .tabs{display:flex;gap:6px;margin-bottom:22px;background:var(--paper);padding:4px;border-radius:10px;}
+  .tabs button{flex:1;padding:9px;border-radius:7px;background:transparent;font-size:13px;font-weight:600;color:var(--text-soft);}
+  .tabs button.active{background:var(--ink);color:#fff;}
+  .msg{font-size:13px;padding:10px 12px;border-radius:8px;margin-bottom:14px;}
+  .msg.ok{background:#E4F5F2;color:#0E6D62;}
+  .msg.err{background:#FBE6E9;color:var(--crimson);}
+  .link-btn{background:none;color:var(--ink);text-decoration:underline;font-size:13px;padding:0;}
+
+  h2.section-title{font-size:24px;margin:0 0 4px;}
+  .section-sub{color:var(--text-soft);font-size:13px;margin-bottom:20px;}
+  .tabbar{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;}
+  .tabbar button{background:var(--paper-2);border:1px solid var(--line);padding:9px 16px;border-radius:9px;font-size:13px;font-weight:600;color:var(--text-soft);}
+  .tabbar button.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+
+  /* ===== Ticket stubs ===== */
+  .ticket{position:relative;background:var(--paper-2);border:1px solid var(--line);border-radius:14px;display:flex;margin-bottom:18px;overflow:hidden;}
+  .ticket-main{flex:1;padding:20px 22px;}
+  .ticket-main .route{font-size:17px;font-weight:700;color:var(--ink);margin-bottom:2px;}
+  .ticket-main .meta{font-size:13px;color:var(--text-soft);}
+  .ticket-stub{width:120px;background:var(--ink);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;font-family:'IBM Plex Mono';}
+  .ticket-stub .seat-label{font-size:10px;color:#9FB0CE;letter-spacing:1.5px;text-transform:uppercase;}
+  .ticket-stub .seat-num{font-size:26px;font-weight:600;}
+  .perforation{position:absolute;left:0;top:0;bottom:0;width:0;border-left:2px dashed var(--line);}
+  .perforation:before,.perforation:after{content:"";position:absolute;left:-9px;width:18px;height:18px;border-radius:50%;background:var(--paper);border:1px solid var(--line);}
+  .perforation:before{top:-9px;}
+  .perforation:after{bottom:-9px;}
+  .cancel-btn{position:absolute;bottom:10px;right:14px;background:none;color:var(--crimson);font-size:12px;font-weight:600;text-decoration:underline;}
+
+  .seat-map{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0;}
+  .seat{aspect-ratio:1;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono';font-size:13px;background:var(--paper);color:var(--text-soft);}
+  .seat.taken{background:#EFEFEF;color:#B7BEC9;text-decoration:line-through;}
+  .seat.mine{background:var(--teal);color:#fff;border-color:var(--teal);}
+
+  .overlay{position:fixed;inset:0;background:rgba(15,31,61,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;}
+  .overlay.active{display:flex;}
+  .modal{background:var(--paper-2);border-radius:18px;padding:28px;max-width:420px;width:100%;}
+  .modal h3{margin:0 0 4px;font-size:22px;}
+  .modal .sub{font-size:13px;color:var(--text-soft);margin-bottom:6px;}
+  .modal-close{float:right;background:none;font-size:20px;color:var(--text-soft);}
+
+  .empty-state{text-align:center;padding:50px 20px;color:var(--text-soft);}
+  .empty-state .icon{font-size:34px;margin-bottom:10px;}
+
+  .add-bus-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:640px){
+    .add-bus-grid{grid-template-columns:1fr;}
+    .board-head{display:none;}
+    .board-row{grid-template-columns:1fr;gap:6px;padding:16px;}
+    .ticket{flex-direction:column;}
+    .ticket-stub{flex-direction:row;width:auto;padding:10px;gap:8px;}
+    .perforation{display:none;}
+  }
+  footer{text-align:center;color:var(--text-soft);font-size:12px;padding:30px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="mark">M</div>
+    <div>
+      <div class="name">MARG</div>
+      <div class="tag">Bus Reservation</div>
+    </div>
+  </div>
+  <div class="session" id="sessionBar"></div>
+</div>
+
+<div id="apiBanner" style="display:none;background:#FBE6E9;color:#D7263D;text-align:center;font-size:13px;padding:10px;"></div>
+
+<div class="wrap">
+
+  <!-- LANDING -->
+  <section class="view active" id="view-landing">
+    <div class="hero">
+      <h1>Where's the road taking you?</h1>
+      <p>Search live seat availability across every route on the network, then reserve your seat in under a minute.</p>
+      <div class="search-row">
+        <input id="qSource" placeholder="From (e.g. Mumbai)">
+        <input id="qDest" placeholder="To (e.g. Pune)">
+        <button onclick="searchBuses()">Search buses</button>
+      </div>
+      <div class="role-pick">
+        <button onclick="showAuth('login')">Passenger login</button>
+        <button onclick="showAuth('register')">Create account</button>
+        <button onclick="showView('view-admin-login')">Admin login</button>
+      </div>
+    </div>
+
+    <h2 class="section-title">All departures</h2>
+    <div class="section-sub">Every bus currently on the network.</div>
+    <div class="board" id="landingBoard"></div>
+  </section>
+
+  <!-- AUTH -->
+  <section class="view" id="view-auth">
+    <div class="card">
+      <div class="tabs">
+        <button id="tabLogin" onclick="showAuth('login')">Log in</button>
+        <button id="tabRegister" onclick="showAuth('register')">Register</button>
+      </div>
+      <div id="authMsg"></div>
+
+      <div id="loginForm">
+        <h2>Welcome back</h2>
+        <div class="sub">Log in to book or manage your tickets.</div>
+        <div class="field"><label>Email</label><input type="email" id="loginEmail" placeholder="you@example.com"></div>
+        <div class="field"><label>Password</label><input type="password" id="loginPassword" placeholder="••••••••"></div>
+        <button class="primary-btn" onclick="doLogin()">Log in</button>
+      </div>
+
+      <div id="registerForm" style="display:none;">
+        <h2>Create your account</h2>
+        <div class="sub">Takes less than a minute.</div>
+        <div class="field"><label>Full name</label><input id="regName" placeholder="Ananya Rao"></div>
+        <div class="field"><label>Email</label><input type="email" id="regEmail" placeholder="you@example.com"></div>
+        <div class="field"><label>Password</label><input type="password" id="regPassword" placeholder="Choose a password"></div>
+        <button class="primary-btn" onclick="doRegister()">Register</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ADMIN LOGIN -->
+  <section class="view" id="view-admin-login">
+    <div class="card">
+      <h2>Admin login</h2>
+      <div class="sub">Manage the fleet and routes.</div>
+      <div id="adminMsg"></div>
+      <div class="field"><label>Username</label><input id="adminUser" placeholder="admin"></div>
+      <div class="field"><label>Password</label><input type="password" id="adminPass" placeholder="••••••••"></div>
+      <button class="primary-btn" onclick="doAdminLogin()">Log in</button>
+      <p style="text-align:center;margin-top:14px;"><button class="link-btn" onclick="showView('view-landing')">Back</button></p>
+      <p style="text-align:center;font-size:12px;color:var(--text-soft);margin-top:10px;">Demo credentials: admin / admin123</p>
+    </div>
+  </section>
+
+  <!-- PASSENGER DASHBOARD -->
+  <section class="view" id="view-passenger">
+    <h2 class="section-title" id="passengerGreeting">Welcome</h2>
+    <div class="section-sub">Book a new ticket or manage your existing reservations.</div>
+    <div class="tabbar">
+      <button id="pTabBrowse" class="active" onclick="setPassengerTab('browse')">Browse buses</button>
+      <button id="pTabBookings" onclick="setPassengerTab('bookings')">My bookings</button>
+    </div>
+
+    <div id="passengerBrowse">
+      <div class="search-row" style="margin-bottom:18px;">
+        <input id="pSource" placeholder="From">
+        <input id="pDest" placeholder="To">
+        <button style="background:var(--ink);color:#fff;" onclick="renderPassengerBuses()">Filter</button>
+      </div>
+      <div class="board" id="passengerBoard"></div>
+    </div>
+
+    <div id="passengerBookings" style="display:none;"></div>
+  </section>
+
+  <!-- ADMIN DASHBOARD -->
+  <section class="view" id="view-admin">
+    <h2 class="section-title">Fleet control</h2>
+    <div class="section-sub">Add new buses and monitor seat inventory across the network.</div>
+    <div class="tabbar">
+      <button id="aTabFleet" class="active" onclick="setAdminTab('fleet')">Fleet</button>
+      <button id="aTabAdd" onclick="setAdminTab('add')">Add bus</button>
+      <button id="aTabBookings" onclick="setAdminTab('bookings')">All bookings</button>
+    </div>
+
+    <div id="adminFleet">
+      <div class="board" id="adminBoard"></div>
+    </div>
+
+    <div id="adminAdd" style="display:none;">
+      <div class="card" style="max-width:520px;">
+        <h2 style="font-size:22px;">Add a bus</h2>
+        <div class="sub">It goes live on the board immediately.</div>
+        <div id="addBusMsg"></div>
+        <div class="add-bus-grid">
+          <div class="field"><label>Bus number</label><input id="busNo" placeholder="MH-12-AB-3456"></div>
+          <div class="field"><label>Bus name</label><input id="busName" placeholder="Shatabdi Express"></div>
+          <div class="field"><label>Source</label><input id="busSource" placeholder="Mumbai"></div>
+          <div class="field"><label>Destination</label><input id="busDest" placeholder="Pune"></div>
+          <div class="field"><label>Total seats</label><input id="busSeats" type="number" min="1" placeholder="40"></div>
+        </div>
+        <button class="primary-btn" onclick="doAddBus()">Add bus</button>
+      </div>
+    </div>
+
+    <div id="adminBookings" style="display:none;"></div>
+  </section>
+
+</div>
+
+<!-- SEAT MODAL -->
+<div class="overlay" id="seatOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeSeatModal()">&times;</button>
+    <h3 id="modalBusName"></h3>
+    <div class="sub" id="modalRoute"></div>
+    <div class="seat-map" id="seatMap"></div>
+    <button class="primary-btn" id="confirmSeatBtn">Confirm seat</button>
+  </div>
+</div>
+
+<footer>MARG Bus Reservation — connected to the Java + MySQL backend at <span id="apiBaseLabel" class="mono"></span>.</footer>
+
+
+<script>
+/* =====================================================================
+   Talks to the real Java REST API (com.busreservation.api.ApiServer),
+   which sits on top of the existing UserDAO / BusDAO / BookingDAO and
+   a MySQL database. Start it with:
+     java -cp bin;<path-to-mysql-connector>.jar com.busreservation.ApiMain
+   then open this file in a browser.
+   ===================================================================== */
+const API_BASE = "http://localhost:8080";
+
+let session = { user: null, isAdmin: false };
+let currentBuses = [];
+
+function $(id){ return document.getElementById(id); }
+
+document.addEventListener('DOMContentLoaded', () => {
+  $('apiBaseLabel').textContent = API_BASE;
+  renderSession();
+  renderLandingBoard();
+  checkApiHealth();
+});
+
+async function checkApiHealth(){
+  try{
+    await api('GET', '/api/buses');
+    $('apiBanner').style.display = 'none';
+  }catch(e){
+    $('apiBanner').style.display = 'block';
+    $('apiBanner').textContent = `Can't reach the API at ${API_BASE}. Start it with "java -cp bin com.busreservation.ApiMain" and make sure MySQL is running.`;
+  }
+}
+
+/* ---------- fetch helper ---------- */
+async function api(method, path, formData){
+  const opts = { method, headers: {} };
+  if (formData) {
+    opts.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+    opts.body = new URLSearchParams(formData).toString();
+  }
+  const res = await fetch(API_BASE + path, opts);
+  let body = {};
+  try { body = await res.json(); } catch(e) {}
+  if (!res.ok && body.success === undefined) {
+    throw new Error(body.message || `Request failed (${res.status})`);
+  }
+  return body;
+}
+function qs(params){
+  return '?' + new URLSearchParams(params).toString();
+}
+
+/* ===================== VIEW / SESSION HELPERS ===================== */
+function showView(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  $(id).classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function renderSession(){
+  const bar = $('sessionBar');
+  if(session.user){
+    bar.innerHTML = `<span>Signed in as <strong>${session.user.name}</strong></span><button onclick="logout()">Log out</button>`;
+  } else if(session.isAdmin){
+    bar.innerHTML = `<span>Admin session</span><button onclick="logout()">Log out</button>`;
+  } else {
+    bar.innerHTML = `<button onclick="showAuth('login')">Passenger login</button><button onclick="showView('view-admin-login')">Admin login</button>`;
+  }
+}
+function logout(){
+  session = { user: null, isAdmin: false };
+  renderSession();
+  renderLandingBoard();
+  showView('view-landing');
+}
+
+/* ===================== AUTH ===================== */
+function showAuth(mode){
+  showView('view-auth');
+  $('authMsg').innerHTML='';
+  const isLogin = mode==='login';
+  $('tabLogin').classList.toggle('active',isLogin);
+  $('tabRegister').classList.toggle('active',!isLogin);
+  $('loginForm').style.display = isLogin? 'block':'none';
+  $('registerForm').style.display = isLogin? 'none':'block';
+}
+async function doRegister(){
+  const name=$('regName').value.trim(), email=$('regEmail').value.trim(), password=$('regPassword').value;
+  const msg=$('authMsg');
+  if(!name||!email||!password){ msg.innerHTML='<div class="msg err">Please fill in every field.</div>'; return; }
+  try{
+    const res = await api('POST','/api/register',{name,email,password});
+    if(res.success){
+      msg.innerHTML='<div class="msg ok">Account created — log in to continue.</div>';
+      $('regName').value=''; $('regEmail').value=''; $('regPassword').value='';
+      showAuth('login');
+    } else {
+      msg.innerHTML=`<div class="msg err">${res.message||'Registration failed.'}</div>`;
+    }
+  }catch(e){ msg.innerHTML=`<div class="msg err">${e.message}</div>`; }
+}
+async function doLogin(){
+  const email=$('loginEmail').value.trim(), password=$('loginPassword').value;
+  const msg=$('authMsg');
+  try{
+    const res = await api('POST','/api/login',{email,password});
+    if(!res.success){ msg.innerHTML=`<div class="msg err">${res.message||'Invalid email or password.'}</div>`; return; }
+    session = { user: res.user, isAdmin: false };
+    renderSession();
+    $('passengerGreeting').textContent = `Welcome, ${res.user.name}`;
+    await setPassengerTab('browse');
+    showView('view-passenger');
+  }catch(e){ msg.innerHTML=`<div class="msg err">${e.message}</div>`; }
+}
+async function doAdminLogin(){
+  const username=$('adminUser').value.trim(), password=$('adminPass').value;
+  const msg=$('adminMsg');
+  try{
+    const res = await api('POST','/api/admin-login',{username,password});
+    if(!res.success){ msg.innerHTML=`<div class="msg err">${res.message||'Invalid admin credentials.'}</div>`; return; }
+    session = { user: null, isAdmin: true };
+    renderSession();
+    await setAdminTab('fleet');
+    showView('view-admin');
+  }catch(e){ msg.innerHTML=`<div class="msg err">${e.message}</div>`; }
+}
+
+/* ===================== BUS BOARDS ===================== */
+function busRowHTML(bus, withBookBtn){
+  const low = bus.availableSeats <= bus.totalSeats*0.15;
+  const seatClass = bus.availableSeats===0? 'low' : (low? 'low':'ok');
+  return `<div class="board-row">
+    <div><div class="busname">${bus.busName}</div><div class="busno">${bus.busNo}</div></div>
+    <div class="route">${bus.source}</div>
+    <div class="route"><span class="arrow">→</span>${bus.destination}</div>
+    <div class="seats mono">${bus.totalSeats} total</div>
+    <div class="seats mono ${seatClass}">${bus.availableSeats} left</div>
+    <div>${withBookBtn? `<button class="book-btn" ${bus.availableSeats===0?'disabled':''} onclick="openSeatModal(${bus.id})">${bus.availableSeats===0?'Full':'Select seat'}</button>` : ''}</div>
+  </div>`;
+}
+function boardHTML(buses, withBookBtn){
+  if(buses.length===0){
+    return `<div class="empty-note">No buses match that route yet. Try a different search.</div>`;
+  }
+  return `<div class="board-head"><div>Bus</div><div>From</div><div>To</div><div>Capacity</div><div>Available</div><div></div></div>` +
+    buses.map(b=>busRowHTML(b,withBookBtn)).join('');
+}
+async function renderLandingBoard(){
+  try{
+    currentBuses = await api('GET','/api/buses');
+    $('landingBoard').innerHTML = boardHTML(currentBuses,false);
+  }catch(e){
+    $('landingBoard').innerHTML = `<div class="empty-note">Couldn't load buses: ${e.message}</div>`;
+  }
+}
+async function searchBuses(){
+  const source=$('qSource').value.trim(), destination=$('qDest').value.trim();
+  try{
+    const buses = await api('GET','/api/buses/search'+qs({source,destination}));
+    $('landingBoard').innerHTML = boardHTML(buses,false);
+    document.querySelector('.section-title').scrollIntoView({behavior:'smooth'});
+  }catch(e){
+    $('landingBoard').innerHTML = `<div class="empty-note">Search failed: ${e.message}</div>`;
+  }
+}
+async function renderPassengerBuses(){
+  const source=$('pSource').value.trim(), destination=$('pDest').value.trim();
+  try{
+    const buses = await api('GET','/api/buses/search'+qs({source,destination}));
+    currentBuses = buses;
+    $('passengerBoard').innerHTML = boardHTML(buses,true);
+  }catch(e){
+    $('passengerBoard').innerHTML = `<div class="empty-note">Couldn't load buses: ${e.message}</div>`;
+  }
+}
+async function renderAdminBoard(){
+  try{
+    const buses = await api('GET','/api/buses');
+    $('adminBoard').innerHTML = boardHTML(buses,false);
+  }catch(e){
+    $('adminBoard').innerHTML = `<div class="empty-note">Couldn't load buses: ${e.message}</div>`;
+  }
+}
+
+/* ===================== SEAT BOOKING ===================== */
+let seatModalBusId=null, seatModalSelected=null;
+async function openSeatModal(busId){
+  const bus = currentBuses.find(b=>b.id===busId);
+  if(!bus||bus.availableSeats<=0) return;
+  seatModalBusId=busId; seatModalSelected=null;
+  $('modalBusName').textContent = bus.busName;
+  $('modalRoute').textContent = `${bus.busNo} · ${bus.source} → ${bus.destination}`;
+
+  let taken = [];
+  try{
+    const seatInfo = await api('GET','/api/bus-seats'+qs({busId}));
+    taken = seatInfo.takenSeats || [];
+  }catch(e){ /* fall back to no known-taken seats rather than blocking booking */ }
+
+  const takenSet = new Set(taken);
+  let html='';
+  for(let i=1;i<=bus.totalSeats;i++){
+    html += `<div class="seat ${takenSet.has(i)?'taken':''}" data-seat="${i}" onclick="pickSeat(this,${i})">${i}</div>`;
+  }
+  $('seatMap').innerHTML = html;
+  $('confirmSeatBtn').onclick = confirmBooking;
+  $('seatOverlay').classList.add('active');
+}
+function closeSeatModal(){ $('seatOverlay').classList.remove('active'); }
+function pickSeat(el, seatNo){
+  if(el.classList.contains('taken')) return;
+  document.querySelectorAll('.seat.mine').forEach(s=>s.classList.remove('mine'));
+  el.classList.add('mine');
+  seatModalSelected = seatNo;
+}
+async function confirmBooking(){
+  if(!seatModalSelected){ alert('Pick a seat first.'); return; }
+  try{
+    const res = await api('POST','/api/bookings', { userId: session.user.id, busId: seatModalBusId, seatNo: seatModalSelected });
+    if(!res.success){ alert(res.message || 'Booking failed.'); return; }
+    closeSeatModal();
+    await renderPassengerBuses();
+    await setPassengerTab('bookings');
+  }catch(e){ alert(e.message); }
+}
+async function cancelBooking(bookingId){
+  try{
+    const res = await api('DELETE','/api/bookings'+qs({bookingId, userId: session.user.id}));
+    if(!res.success){ alert(res.message || 'Cancellation failed.'); return; }
+    await renderMyBookings();
+    await renderPassengerBuses();
+  }catch(e){ alert(e.message); }
+}
+
+/* ===================== PASSENGER TABS ===================== */
+async function setPassengerTab(tab){
+  $('pTabBrowse').classList.toggle('active',tab==='browse');
+  $('pTabBookings').classList.toggle('active',tab==='bookings');
+  $('passengerBrowse').style.display = tab==='browse'?'block':'none';
+  $('passengerBookings').style.display = tab==='bookings'?'block':'none';
+  if(tab==='browse') await renderPassengerBuses();
+  else await renderMyBookings();
+}
+async function renderMyBookings(){
+  const box = $('passengerBookings');
+  try{
+    const mine = await api('GET','/api/bookings'+qs({userId: session.user.id}));
+    if(mine.length===0){
+      box.innerHTML = `<div class="empty-state"><div class="icon">🎫</div><div><strong>No bookings yet</strong><br>Browse buses and reserve a seat to see your ticket here.</div></div>`;
+      return;
+    }
+    box.innerHTML = mine.map(b => `<div class="ticket">
+        <div class="ticket-main">
+          <div class="route">${b.source} <span style="color:var(--amber);">→</span> ${b.destination}</div>
+          <div class="meta">${b.busName} · ${b.busNo}</div>
+          <div class="meta">Booked ${b.bookingDate}</div>
+          <button class="cancel-btn" onclick="cancelBooking(${b.id})">Cancel booking</button>
+        </div>
+        <div class="perforation"></div>
+        <div class="ticket-stub">
+          <div class="seat-label">Seat</div>
+          <div class="seat-num">${b.seatNo}</div>
+        </div>
+      </div>`).join('');
+  }catch(e){
+    box.innerHTML = `<div class="empty-note">Couldn't load bookings: ${e.message}</div>`;
+  }
+}
+
+/* ===================== ADMIN TABS ===================== */
+async function setAdminTab(tab){
+  $('aTabFleet').classList.toggle('active',tab==='fleet');
+  $('aTabAdd').classList.toggle('active',tab==='add');
+  $('aTabBookings').classList.toggle('active',tab==='bookings');
+  $('adminFleet').style.display = tab==='fleet'?'block':'none';
+  $('adminAdd').style.display = tab==='add'?'block':'none';
+  $('adminBookings').style.display = tab==='bookings'?'block':'none';
+  if(tab==='fleet') await renderAdminBoard();
+  if(tab==='bookings') await renderAdminBookings();
+}
+async function doAddBus(){
+  const busNo=$('busNo').value.trim(), busName=$('busName').value.trim(), source=$('busSource').value.trim(), destination=$('busDest').value.trim();
+  const totalSeats=$('busSeats').value;
+  const msg=$('addBusMsg');
+  if(!busNo||!busName||!source||!destination||!totalSeats||parseInt(totalSeats,10)<1){
+    msg.innerHTML='<div class="msg err">Fill in every field with a valid seat count.</div>'; return;
+  }
+  try{
+    const res = await api('POST','/api/buses',{busNo,busName,source,destination,totalSeats});
+    if(res.success){
+      msg.innerHTML='<div class="msg ok">Bus added — it\'s live on the fleet board.</div>';
+      ['busNo','busName','busSource','busDest','busSeats'].forEach(id=>$(id).value='');
+      await renderAdminBoard();
+      await renderLandingBoard();
+    } else {
+      msg.innerHTML=`<div class="msg err">${res.message||'Could not add bus.'}</div>`;
+    }
+  }catch(e){ msg.innerHTML=`<div class="msg err">${e.message}</div>`; }
+}
+async function renderAdminBookings(){
+  const box=$('adminBookings');
+  try{
+    const bookings = await api('GET','/api/bookings/all');
+    if(bookings.length===0){
+      box.innerHTML = `<div class="empty-state"><div class="icon">🗒️</div><div><strong>No bookings on the network yet</strong></div></div>`;
+      return;
+    }
+    box.innerHTML = `<div class="board"><div class="board-head" style="grid-template-columns:1fr 1.2fr 1fr .6fr 1fr;">
+        <div>Passenger</div><div>Route</div><div>Bus</div><div>Seat</div><div>Date</div>
+      </div>` + bookings.map(b => `<div class="board-row" style="grid-template-columns:1fr 1.2fr 1fr .6fr 1fr;">
+          <div>${b.userName}</div>
+          <div>${b.source} → ${b.destination}</div>
+          <div>${b.busName}</div>
+          <div class="mono">${b.seatNo}</div>
+          <div class="mono">${b.bookingDate}</div>
+        </div>`).join('') + `</div>`;
+  }catch(e){
+    box.innerHTML = `<div class="empty-note">Couldn't load bookings: ${e.message}</div>`;
+  }
+}
+</script>
+</body>
+</html>
